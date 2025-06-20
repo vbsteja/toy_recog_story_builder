@@ -1,3 +1,9 @@
+### add docstring here
+"""
+Webcam App using Kivy
+"""
+
+
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager
 
@@ -15,3 +21,4 @@ class WebcamApp(App):
 
 if __name__ == "__main__":
     WebcamApp().run()
+
