@@ -3,9 +3,11 @@ from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty
-from models.image_process import texture_to_numpy
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.clock import Clock
+
+from models.image_process import texture_to_numpy, ImageDetector
 
 class HomeScreen(Screen):
     message = StringProperty('Hello!')
@@ -52,6 +54,8 @@ class HomeScreen(Screen):
 
         self.add_widget(layout)
 
+        # Schedule YOLO detection at 2 FPS (every 0.5 seconds)
+        Clock.schedule_interval(self.detect_objects, 0.5)
 
 
 
@@ -68,3 +72,9 @@ class HomeScreen(Screen):
         if camera and camera.texture:
             return texture_to_numpy(camera.texture)
         return None
+
+    def detect_objects(self, dt):
+        img = self.get_camera_numpy()
+        if img is not None:
+            detected = ImageDetector.detect_objects(img)
+            print('Detected objects:', detected)
