@@ -15,19 +15,23 @@ my_kivy_app/
 ```
 
 ## main.py
+
 ```python
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager
-from screens.home_screen import HomeScreen
+from screens.game_screen import GameScreen
+
 
 class MyScreenManager(ScreenManager):
     pass
 
+
 class MyApp(App):
     def build(self):
         sm = MyScreenManager()
-        sm.add_widget(HomeScreen(name='home'))
+        sm.add_widget(GameScreen(name='home'))
         return sm
+
 
 if __name__ == '__main__':
     MyApp().run()

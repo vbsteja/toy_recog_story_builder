@@ -75,3 +75,19 @@ class ImageDetector:
         # For now, just return a dummy list of detected objects
         # return [{'label': 'object1', 'confidence': 0.9}, {'label': 'object2', 'confidence': 0.8}]
 
+    @staticmethod
+    def get_top_class_name(results):
+        """
+        Get the top class name from detection results.
+        """
+        if not results or not results[0].boxes:
+            return None
+        conf_class_list = [
+            (float(box.conf[0]), results.names[int(box.cls[0])])
+            for box in results[0].boxes
+        ]
+        if conf_class_list:
+            max_conf, max_class_name = max(conf_class_list, key=lambda x: x[0])
+            print('Class with max confidence:', max_class_name, 'with confidence:', max_conf)
+            return max_class_name, max_conf
+        return None

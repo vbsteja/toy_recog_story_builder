@@ -1,80 +1,73 @@
-from kivy.uix.scatter import Scatter
-from kivy.uix.camera import Camera
+from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.screenmanager import Screen
-from kivy.properties import StringProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.clock import Clock
+from kivy.uix.screenmanager import Screen
+from kivy.graphics import Rectangle, Color, InstructionGroup
+from kivy.properties import ListProperty
 
-from models.image_process import texture_to_numpy, ImageDetector
-
-class HomeScreen(Screen):
-    message = StringProperty('Hello!')
+class GradientWidget(Widget):
+    gradient_colors = ListProperty([(0.2, 0.6, 1, 1), (0.8, 0.2, 0.8, 1)])  # Blue to purple
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        import sys
+        self.bind(pos=self.update_gradient, size=self.update_gradient)
+
+    def update_gradient(self, *args):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            steps = 32
+            for i in range(steps):
+                t = i / float(steps - 1)
+                r = self.gradient_colors[0][0] * (1 - t) + self.gradient_colors[1][0] * t
+                g = self.gradient_colors[0][1] * (1 - t) + self.gradient_colors[1][1] * t
+                b = self.gradient_colors[0][2] * (1 - t) + self.gradient_colors[1][2] * t
+                a = self.gradient_colors[0][3] * (1 - t) + self.gradient_colors[1][3] * t
+                Color(r, g, b, a)
+                Rectangle(pos=(self.x, self.y + self.height * i / steps),
+                          size=(self.width, self.height / steps))
+
+
+class MainMenuScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.gradient = GradientWidget()
+        self.add_widget(self.gradient)
+
         layout = FloatLayout()
-        scatter = Scatter(do_scale=False, do_translation=False, do_rotation=False)
-        scatter.size_hint = (None, None)
-        scatter.size = (600, 800)
-        scatter.pos_hint = {'right': 1, 'y': 0}
-        if sys.platform == 'darwin':
-            scatter.rotation = 90
-        camera = Camera(play=True, resolution=(640, 480))  # Reduced resolution for better performance
-        camera.size_hint = (None, None)
-        camera.size = (400, 300)  # Keep the view size the same
-        # Mirror the camera feed by flipping horizontally
-        camera.canvas.before.clear()
-        with camera.canvas.before:
-            from kivy.graphics import PushMatrix, Scale
-            PushMatrix()
-            Scale(x=-1, y=1, z=1, origin=camera.center)
-        with camera.canvas.after:
-            from kivy.graphics import PopMatrix
-            PopMatrix()
-        scatter.add_widget(camera)
-        layout.add_widget(scatter)
+        button_box = BoxLayout(orientation='vertical',
+                               spacing=30,
+                               size_hint=(.5, .4),
+                               pos_hint={'center_x': 0.5, 'center_y': 0.5})
 
-        ## Add a button to the layout
-        button_layout = BoxLayout(size_hint=(None, None), size=(200, 50), pos_hint={'center_x': 0.5, 'y': 0})
-        button = Button(text='Click Me', on_press=lambda x: self.on_button_click())
-        button_layout.add_widget(button)
-        layout.add_widget(button_layout)
-
-        ## Add a button to the layout
-        button_layout = BoxLayout(size_hint=(None, None), size=(200, 50), pos_hint={'center_x': 0.5, 'y': 0.1})
-        button = Button(text='Get Camera Image', on_press=lambda x: self.get_camera_numpy())
-        button_layout.add_widget(button)
-        layout.add_widget(button_layout)
-        # Add the layout to the screen
-        self.bind(message=lambda instance, value: setattr(button, 'text', value))
-
-
+        play_btn = Button(
+            text='Play Game',
+            size_hint=(1, None),
+            height=60,
+            background_normal='',
+            background_color=(0.1, 0.7, 0.4, 1),
+            color=(1, 1, 1, 1),
+            font_size=24,
+            border=(20, 20, 20, 20),
+            on_press = self.on_play
+        )
+        train_btn = Button(
+            text='Train Game AI',
+            size_hint=(1, None),
+            height=60,
+            background_normal='',
+            background_color=(0.9, 0.5, 0.2, 1),
+            color=(1, 1, 1, 1),
+            font_size=24,
+            border=(20, 20, 20, 20),
+            on_press= self.on_train
+        )
+        button_box.add_widget(play_btn)
+        button_box.add_widget(train_btn)
+        layout.add_widget(button_box)
         self.add_widget(layout)
 
-        # Schedule YOLO detection at 2 FPS (every 0.5 seconds)
-        Clock.schedule_interval(self.detect_objects, 0.5)
-
-
-
-    def on_button_click(self):
-        self.message = 'Button Clicked!'
-
-    def get_camera_numpy(self):
-        # Access the camera widget
-        camera = None
-        for child in self.walk():
-            if isinstance(child, Camera):
-                camera = child
-                break
-        if camera and camera.texture:
-            return texture_to_numpy(camera.texture)
-        return None
-
-    def detect_objects(self, dt):
-        img = self.get_camera_numpy()
-        if img is not None:
-            detected = ImageDetector.detect_objects(img)
-            print('Detected objects:', detected)
+    def on_play(self, instance):
+        self.manager.current = 'game'
+    def on_train(self, instance):
+        self.manager.current = 'train'
