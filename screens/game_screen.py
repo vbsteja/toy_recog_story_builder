@@ -1,3 +1,5 @@
+from loguru import logger
+import  Foundation, AVFoundation
 from kivy.uix.scatter import Scatter
 from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
@@ -6,7 +8,9 @@ from kivy.properties import StringProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.clock import Clock
+from kivy.graphics import Rectangle, Color
 
+from game.core import Game
 from models.image_process import texture_to_numpy, ImageDetector
 
 class GameScreen(Screen):
@@ -16,6 +20,16 @@ class GameScreen(Screen):
         super().__init__(**kwargs)
         import sys
         layout = FloatLayout()
+
+        # Gradient background
+        with layout.canvas.before:
+            # Top color
+            Color(0.2, 0.4, 0.8, 1)
+            self.bg_rect_top = Rectangle(pos=layout.pos, size=(layout.width, layout.height / 2))
+            # Bottom color
+            Color(0.8, 0.2, 0.4, 1)
+            self.bg_rect_bottom = Rectangle(pos=(layout.x, layout.y), size=(layout.width, layout.height / 2))
+
         scatter = Scatter(do_scale=False, do_translation=False, do_rotation=False)
         scatter.size_hint = (None, None)
         scatter.size = (600, 800)
@@ -42,16 +56,20 @@ class GameScreen(Screen):
             orientation='horizontal',
             spacing=10,
             size_hint=(None, None),
-            size=(220, 50),
+            size=(500, 100),
             pos_hint={'x': 0, 'y': 0},
             padding=[10, 10, 10, 10]
         )
-        start_btn = Button(text='Start', size_hint=(None, None), size=(100, 40),
+        start_btn = Button(text='Start', size_hint=(None, None), size=(200, 80),
                            on_press=self.on_start_click)
-        pause_btn = Button(text='Pause', size_hint=(None, None), size=(100, 40),
+        pause_btn = Button(text='Pause', size_hint=(None, None), size=(200, 80),
                            on_press=self.on_pause_click)
+        self.add_actor_btn = Button(text='Add Actor', size_hint=(None, None), size=(200, 80),
+                                      opacity=0, disabled=True,
+                                      on_press=self.on_add_actor_click)
         button_box.add_widget(start_btn)
         button_box.add_widget(pause_btn)
+        button_box.add_widget(self.add_actor_btn)
         layout.add_widget(button_box)
 
         self.add_widget(layout)
@@ -60,16 +78,31 @@ class GameScreen(Screen):
         self.last_detection = None
         self.detection_count = 0
 
+        self.game = Game()
+
+    def _update_bg_rect(self, instance, value):
+        self.bg_rect_top.pos = instance.pos
+        self.bg_rect_top.size = (instance.width, instance.height / 2)
+        self.bg_rect_bottom.pos = (instance.x, instance.y)
+        self.bg_rect_bottom.size = (instance.width, instance.height / 2)
 
     def on_start_click(self, instance):
         ## schedule YOLO detection at 2 FPS (every 0.5 seconds)
+        # Clock.schedule_interval(self.detect_objects, 0.5)
+        logger.info('Game Started!')
+        self.add_actor_btn.opacity = 1
+        self.add_actor_btn.disabled = False
+
+    def on_add_actor_click(self, instance):
+        logger.info('Add Actor button clicked')
         Clock.schedule_interval(self.detect_objects, 0.5)
-        self.message = 'Game Started!'
 
     def on_pause_click(self, instance):
         ## unschedule YOLO detection
         Clock.unschedule(self.detect_objects)
-        self.message = 'Game Paused!'
+        self.add_actor_btn.opacity = 0
+        self.add_actor_btn.disabled = True
+        logger.info('Game Paused!')
 
     def get_camera_numpy(self):
         # Access the camera widget
@@ -86,7 +119,7 @@ class GameScreen(Screen):
         img = self.get_camera_numpy()
         if img is not None:
             detected = ImageDetector.detect_objects(img)
-            print('Detected objects:', detected)
+            logger.info(f'Detected objects: {detected}')
             class_name, confidence = ImageDetector.get_top_class_name(detected)
             if class_name == self.last_detection:
                 self.detection_count += 1
@@ -94,7 +127,10 @@ class GameScreen(Screen):
                 self.detection_count = 1
             self.last_detection = class_name
             if self.detection_count >= 4:
-                self.message = 'You win!'
-                Clock.unschedule(self.detect_objects)
-                self.message = 'Detection stopped after 4 consecutive detections.'
+                if class_name not in (self.game.actors.keys()):
+                    logger.info('Adding new actor: {}'.format(class_name))
+                    self.game.add_actor(class_name)
+                logger.info('Object detected: {}'.format(class_name))
 
+
+            # else:

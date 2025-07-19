@@ -1,8 +1,33 @@
 <HomeScreen>:
-    BoxLayout:
-        orientation: 'vertical'
+    FloatLayout:
+        # Place UI controls above the Scatter for correct z-order
         Label:
             text: root.message
+            size_hint: 1, None
+            height: 50
+            pos_hint: {'x': 0, 'y': 0.95}
+        Label:
+            id: size_label
+            text: ""
+            size_hint: None, None
+            size: 300, 50
+            pos_hint: {'x': 0, 'y': 0.9}
         Button:
-            text: 'Click Me'
+            text: "Show Camera Numpy Size"
+            size_hint: None, None
+            size: 300, 50
+            pos_hint: {'x': 0, 'y': 0.8}
             on_press: root.on_button_click()
+        Scatter:
+            id: scatter
+            do_scale: False
+            do_translation: False
+            do_rotation: False
+            size_hint: None, None
+            size: 600, 800
+            pos_hint: {'right': 1, 'y': 0}
+            rotation: 90
+            Label:
+                text: "Camera Placeholder"
+                size_hint: None, None
+                size: 800, 600
