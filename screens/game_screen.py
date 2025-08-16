@@ -1,5 +1,5 @@
+ import  sys
 from loguru import logger
-import  Foundation, AVFoundation
 from kivy.uix.scatter import Scatter
 from kivy.uix.camera import Camera
 from kivy.uix.floatlayout import FloatLayout
@@ -11,7 +11,10 @@ from kivy.clock import Clock
 from kivy.graphics import Rectangle, Color
 
 from game.core import Game
+from screens.custom_widgets import SilverBackgroundWidget
 from models.image_process import texture_to_numpy, ImageDetector
+
+
 
 class GameScreen(Screen):
     message = StringProperty('Hello!')
@@ -20,16 +23,9 @@ class GameScreen(Screen):
         super().__init__(**kwargs)
         import sys
         layout = FloatLayout()
-
-        # Gradient background
-        with layout.canvas.before:
-            # Top color
-            Color(0.2, 0.4, 0.8, 1)
-            self.bg_rect_top = Rectangle(pos=layout.pos, size=(layout.width, layout.height / 2))
-            # Bottom color
-            Color(0.8, 0.2, 0.4, 1)
-            self.bg_rect_bottom = Rectangle(pos=(layout.x, layout.y), size=(layout.width, layout.height / 2))
-
+        #set the background color to silver
+        self.background = SilverBackgroundWidget()
+        layout.add_widget(self.background)
         scatter = Scatter(do_scale=False, do_translation=False, do_rotation=False)
         scatter.size_hint = (None, None)
         scatter.size = (600, 800)
@@ -39,9 +35,9 @@ class GameScreen(Screen):
         camera = Camera(play=True, resolution=(640, 480))  # Reduced resolution for better performance
         camera.size_hint = (None, None)
         camera.size = (400, 300)  # Keep the view size the same
-        # Mirror the camera feed by flipping horizontally
+        # Mirror the camera feed by flipping  ,
         camera.canvas.before.clear()
-        with camera.canvas.before:
+        with camera.canvas.befor:
             from kivy.graphics import PushMatrix, Scale
             PushMatrix()
             Scale(x=-1, y=1, z=1, origin=camera.center)
@@ -56,17 +52,17 @@ class GameScreen(Screen):
             orientation='horizontal',
             spacing=10,
             size_hint=(None, None),
-            size=(500, 100),
-            pos_hint={'x': 0, 'y': 0},
-            padding=[10, 10, 10, 10]
+            size=(640, 100),
+            pos_hint={'center_x': 0.5, 'top': 1},
+            padding=[10, 0, 10, 0]
         )
         start_btn = Button(text='Start', size_hint=(None, None), size=(200, 80),
                            on_press=self.on_start_click)
         pause_btn = Button(text='Pause', size_hint=(None, None), size=(200, 80),
                            on_press=self.on_pause_click)
         self.add_actor_btn = Button(text='Add Actor', size_hint=(None, None), size=(200, 80),
-                                      opacity=0, disabled=True,
-                                      on_press=self.on_add_actor_click)
+                                    disabled=True,
+                                    on_press=self.on_add_actor_click)
         button_box.add_widget(start_btn)
         button_box.add_widget(pause_btn)
         button_box.add_widget(self.add_actor_btn)
@@ -79,12 +75,6 @@ class GameScreen(Screen):
         self.detection_count = 0
 
         self.game = Game()
-
-    def _update_bg_rect(self, instance, value):
-        self.bg_rect_top.pos = instance.pos
-        self.bg_rect_top.size = (instance.width, instance.height / 2)
-        self.bg_rect_bottom.pos = (instance.x, instance.y)
-        self.bg_rect_bottom.size = (instance.width, instance.height / 2)
 
     def on_start_click(self, instance):
         ## schedule YOLO detection at 2 FPS (every 0.5 seconds)
@@ -104,6 +94,24 @@ class GameScreen(Screen):
         self.add_actor_btn.disabled = True
         logger.info('Game Paused!')
 
+    def detect_objects(self, dt):
+        """ run object detection on the camera feed and update game state """
+        img = self.get_camera_numpy()
+        if img is not None:
+            # Use the ImageDetector to detect objects in the image
+            detector = ImageDetector()
+            detection = detector.detect_objects(img)
+            if detection:
+                self.last_detection = detection
+                self.detection_count += 1
+                logger.info(f'Detected {len(detection)} objects: {self.last_detection}')
+                if self.detection_count >= 5:
+                    # Reset detection count after 5 detections
+                    self.detection_count = 0
+                    logger.info('Resetting detection count after 5 detections')
+
+                # Update game state with detected objects
+
     def get_camera_numpy(self):
         # Access the camera widget
         camera = None
@@ -114,23 +122,3 @@ class GameScreen(Screen):
         if camera and camera.texture:
             return texture_to_numpy(camera.texture)
         return None
-
-    def detect_objects(self, dt):
-        img = self.get_camera_numpy()
-        if img is not None:
-            detected = ImageDetector.detect_objects(img)
-            logger.info(f'Detected objects: {detected}')
-            class_name, confidence = ImageDetector.get_top_class_name(detected)
-            if class_name == self.last_detection:
-                self.detection_count += 1
-            else:
-                self.detection_count = 1
-            self.last_detection = class_name
-            if self.detection_count >= 4:
-                if class_name not in (self.game.actors.keys()):
-                    logger.info('Adding new actor: {}'.format(class_name))
-                    self.game.add_actor(class_name)
-                logger.info('Object detected: {}'.format(class_name))
-
-
-            # else:
